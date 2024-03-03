@@ -6,6 +6,7 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class SpotifyRepository {
+    // Maps to hold the relationships between entities
     public HashMap<Artist, List<Album>> artistAlbumMap;
     public HashMap<Album, List<Song>> albumSongMap;
     public HashMap<Playlist, List<Song>> playlistSongMap;
@@ -14,14 +15,19 @@ public class SpotifyRepository {
     public HashMap<User, List<Playlist>> userPlaylistMap;
     public HashMap<Song, List<User>> songLikeMap;
 
+    // Lists to hold individual entities
     public List<User> users;
     public List<Song> songs;
     public List<Playlist> playlists;
     public List<Album> albums;
     public List<Artist> artists;
+
+    // Like flag to prevent multiple likes by a single user on a single song
     private boolean like=false;
+
+    // Constructor to initialize the repository
     public SpotifyRepository(){
-        //To avoid hitting apis multiple times, initialize all the hashmaps here with some dummy data
+        // Initializing all the hashmaps and lists
         artistAlbumMap = new HashMap<>();
         albumSongMap = new HashMap<>();
         playlistSongMap = new HashMap<>();
@@ -29,8 +35,6 @@ public class SpotifyRepository {
         creatorPlaylistMap = new HashMap<>();
         userPlaylistMap = new HashMap<>();
         songLikeMap = new HashMap<>();
-
-
 
         users = new ArrayList<>();
         songs = new ArrayList<>();
@@ -40,53 +44,61 @@ public class SpotifyRepository {
     }
 
     public User createUser(String name, String mobile) {
+        // Check if user already exists, if yes return the existing user
         for(User user:users){
             if (user.getMobile().equals(mobile)) {
                 return user;
             }
         }
-        User newuser=new User(name,mobile);
-        users.add(newuser);
-        return newuser;
+        // If user doesn't exist, create a new user and add to the list
+        User newUser=new User(name,mobile);
+        users.add(newUser);
+        return newUser;
     }
 
     public Artist createArtist(String name) {
-        for(Artist a:artists){
-            if(a.getName().equals(name)){
-                return a;
+        // Check if artist already exists, if yes return the existing artist
+        for(Artist artist:artists){
+            if(artist.getName().equals(name)){
+                return artist;
             }
         }
-        Artist newartist=new Artist(name);
-        artists.add(newartist);
-        return newartist;
+        // If artist doesn't exist, create a new artist and add to the list
+        Artist newArtist=new Artist(name);
+        artists.add(newArtist);
+        return newArtist;
     }
 
     public Album createAlbum(String title, String artistName) {
+        // Get the artist object if it exists
         Artist artist=null;
-        for(Artist a:artists){
-            if(a.getName().equals(artistName)){
-                artist=a;
+        for(Artist existingArtist:artists){
+            if(existingArtist.getName().equals(artistName)){
+                artist=existingArtist;
                 break;
             }
         }
-        //if artist not exist
+        // Create a new artist if it doesn't exist
         if(artist==null){
             artist=createArtist(artistName);
         }
+        // Create a new album
         Album newAlbum=new Album(title);
+        // Add the album to the list if it's not already present
         if(!albums.contains(newAlbum)){
             albums.add(newAlbum);
         }
+        // Update the artist-album map
         if(artistAlbumMap.containsKey(artist)){
             List<Album> allAlbums=artistAlbumMap.get(artist);
-            boolean c=false;
-            for(Album a:allAlbums){
-                if(a.getTitle().equals(title)){
-                    c=true;
+            boolean albumExists=false;
+            for(Album existingAlbum:allAlbums){
+                if(existingAlbum.getTitle().equals(title)){
+                    albumExists=true;
                     break;
                 }
             }
-            if(!c){
+            if(!albumExists){
                 allAlbums.add(newAlbum);
             }
         }
@@ -94,217 +106,286 @@ public class SpotifyRepository {
     }
 
     public Song createSong(String title, String albumName, int length) throws Exception{
-        Album a=null;
-        for(Album b:albums){
-            if(b.getTitle().equals(albumName)){
-                a=b;
+        // Get the album object if it exists
+        Album album=null;
+        for(Album existingAlbum:albums){
+            if(existingAlbum.getTitle().equals(albumName)){
+                album=existingAlbum;
                 break;
             }
         }
-        Song newsong = new Song(title, length);
-        if(a==null){
+        // Throw exception if album doesn't exist
+        if(album==null){
             throw new Exception("Album does not exist");
         }
 
-        else {
+        // Create a new song
+        Song newSong = new Song(title, length);
 
-            List<Song> songlist =albumSongMap.get(a);
-            songlist.add(newsong);
+        // Get the list of songs for the album
+        List<Song> songList = albumSongMap.get(album);
 
+        // Create the list if it doesn't exist
+        if(songList == null){
+            songList = new ArrayList<>();
+            albumSongMap.put(album, songList);
         }
-        return newsong;
+
+        // Add the new song to the list
+        songList.add(newSong);
+
+        // Add the song to the list of songs
+        if(!songs.contains(newSong)){
+            songs.add(newSong);
+        }
+
+        return newSong;
 
     }
 
     public Playlist createPlaylistOnLength(String mobile, String title, int length) throws Exception {
-        //new playlist
-        Playlist pl=new Playlist(title);
-        playlists.add(pl);
-        //new songs list for playlist
-        List<Song> plsongs=new ArrayList<>();
-        // add songs in songlist for playlist
-        for(Song s:songs){
-            if(s.getLength()==length){
-                plsongs.add(s);
-            }
+        // Create a new playlist
+        Playlist playlist=new Playlist(title);
+        playlists.add(playlist);
 
-        }
-//map songlist with playlist name
-        playlistSongMap.put(pl,plsongs);
-        User u=null;
-        for(User user:users){
-            if(user.getMobile().equals(mobile)){
-                u=user;
+        // Get the user object if it exists
+        User user=null;
+        for(User existingUser:users){
+            if(existingUser.getMobile().equals(mobile)){
+                user=existingUser;
                 break;
             }
         }
-        if(u==null){
-            throw new Exception("user not exist");
+
+        // Throw exception if user doesn't exist
+        if(user==null){
+            throw new Exception("User does not exist");
         }
 
-//map creator with playlist created
-        creatorPlaylistMap.put(u,pl);
-        //adding user as listener
-        List<User> listener=new ArrayList<>();
-        listener.add(u);
-        // map listener and playlist
-        playlistListenerMap.put(pl,listener);
+        // Create a new list for playlist songs
+        List<Song> playlistSongs=new ArrayList<>();
 
-        //mapping all playlists created by user
-        List<Playlist> userplaylists=new ArrayList<>();
-        userplaylists.add(pl);
-        userPlaylistMap.put(u,userplaylists);
+        // Add songs to the playlist if their length matches the specified length
+        for(Song song:songs){
+            if(song.getLength()==length){
+                playlistSongs.add(song);
+            }
+        }
 
+        // Map the playlist songs
+        playlistSongMap.put(playlist,playlistSongs);
 
-        return pl;
+        // Map the creator with the playlist
+        creatorPlaylistMap.put(user,playlist);
+
+        // Add the user as a listener
+        List<User> listenerList=new ArrayList<>();
+        listenerList.add(user);
+        playlistListenerMap.put(playlist,listenerList);
+
+        // Map the user with the created playlist
+        List<Playlist> userPlaylists=new ArrayList<>();
+        userPlaylists.add(playlist);
+        userPlaylistMap.put(user,userPlaylists);
+
+        return playlist;
     }
 
     public Playlist createPlaylistOnName(String mobile, String title, List<String> songTitles) throws Exception {
-        Playlist pl=new Playlist(title);//created a playlist with given title
-        playlists.add(pl);//added playlist to playlists
-        List<Song> newsl=new ArrayList<>();
-        for(String songTitle:songTitles){
-            newsl.add(new Song(songTitle,0));
-        }
-        playlistSongMap.put(pl,newsl);
-        User u=null;
-        for(User user:users){
-            if(user.getMobile().equals(mobile)){
-                u=user;
+        // Create a new playlist
+        Playlist playlist=new Playlist(title);
+        playlists.add(playlist);
+
+        // Get the user object if it exists
+        User user=null;
+        for(User existingUser:users){
+            if(existingUser.getMobile().equals(mobile)){
+                user=existingUser;
                 break;
             }
         }
-        if(u==null){
-            throw new Exception("user not exist");
-        }
-        //map creator with playlist created
-        creatorPlaylistMap.put(u,pl);
-        //adding user as listener
-        List<User> listener=new ArrayList<>();
-        listener.add(u);
-        // map listener and playlist
-        playlistListenerMap.put(pl,listener);
-        //mapping all playlists created by user
-        List<Playlist> userplaylists=new ArrayList<>();
-        userplaylists.add(pl);
-        userPlaylistMap.put(u,userplaylists);
-return pl;
 
+        // Throw exception if user doesn't exist
+        if(user==null){
+            throw new Exception("User does not exist");
+        }
+
+        // Create a new list for playlist songs
+        List<Song> playlistSongs=new ArrayList<>();
+
+        // Add songs to the playlist if their title matches any of the specified song titles
+        for(Song song:songs){
+            if(songTitles.contains(song.getTitle())){
+                playlistSongs.add(song);
+            }
+        }
+
+        // Map the playlist songs
+        playlistSongMap.put(playlist,playlistSongs);
+
+        // Map the creator with the playlist
+        creatorPlaylistMap.put(user,playlist);
+
+        // Add the user as a listener
+        List<User> listenerList=new ArrayList<>();
+        listenerList.add(user);
+        playlistListenerMap.put(playlist,listenerList);
+
+        // Map the user with the created playlist
+        List<Playlist> userPlaylists=new ArrayList<>();
+        userPlaylists.add(playlist);
+        userPlaylistMap.put(user,userPlaylists);
+
+        return playlist;
     }
 
     public Playlist findPlaylist(String mobile, String playlistTitle) throws Exception {
-User user=null;
-//finding user
-for(User u:users){
-    if(u.getMobile().equals(mobile)){
-        user=u;
-        break;
-    }
-}
+        // Get the user object if it exists
+        User user=null;
+        for(User existingUser:users){
+            if(existingUser.getMobile().equals(mobile)){
+                user=existingUser;
+                break;
+            }
+        }
+
+        // Throw exception if user doesn't exist
         if(user==null){
-            throw new Exception("user not exist");
+            throw new Exception("User does not exist");
+        }
 
+        // Get the playlist object if it exists
+        Playlist playlist=null;
+        for(Playlist existingPlaylist:playlists){
+            if(existingPlaylist.getTitle().equals(playlistTitle)){
+                playlist=existingPlaylist;
+                break;
+            }
         }
-        //finding playlist with given title
-        Playlist temp=null;
-        for(Playlist pl:playlists){
-            if(pl.getTitle().equals(playlistTitle))
-                temp=pl;
-        }
-        if(temp==null){
-            throw new Exception("playlist not exist");
 
+        // Throw exception if playlist doesn't exist
+        if(playlist==null){
+            throw new Exception("Playlist does not exist");
         }
-        List<User>listener=new ArrayList<>();
-        listener.add(user);
-        playlistListenerMap.put(temp,listener);
-        return temp;
+
+        // Add the user as a listener if they are not the creator or already a listener
+        List<User> listeners = playlistListenerMap.get(playlist);
+        if(!listeners.contains(user)){
+            listeners.add(user);
+        }
+
+        return playlist;
     }
 
     public Song likeSong(String mobile, String songTitle) throws Exception {
+        // Check if the like flag is set
         if(!like){
-            like =true;
+            // Set the like flag to prevent multiple likes
+            like = true;
+
+            // Get the user object if it exists
             User user=null;
-            for(User u:users){
-                if(u.getMobile().equals(mobile)){
-                    user=u;
+            for(User existingUser:users){
+                if(existingUser.getMobile().equals(mobile)){
+                    user=existingUser;
+                    break;
                 }
             }
-            if (user == null) {
+
+            // Throw exception if user doesn't exist
+            if(user == null){
                 throw new Exception("User does not exist");
             }
+
+            // Get the song object if it exists
             Song song=null;
-            for(Song s:songs){
-                if(s.getTitle().equals(songTitle)){
-                    song=s;
+            for(Song existingSong:songs){
+                if(existingSong.getTitle().equals(songTitle)){
+                    song=existingSong;
+                    break;
                 }
             }
-            if (song == null) {
+
+            // Throw exception if song doesn't exist
+            if(song == null){
                 throw new Exception("Song does not exist");
             }
-            //created the list of users who like the song
-            List<User> userss=new ArrayList<>();
 
-            userss.add(user);//added the user in list who like the song
-            songLikeMap.put(song,userss);// map the user who liked this song
-            // increasing the like of the song
-            int like= song.getLikes();
-            song.setLikes(like+1);
+            // Get the list of users who liked the song, or create a new list if it doesn't exist
+            List<User> likedUsers = songLikeMap.get(song);
+            if(likedUsers == null){
+                likedUsers = new ArrayList<>();
+                songLikeMap.put(song, likedUsers);
+            }
 
-            // increasing the like of artist who created this song
+            // Add the user to the list if they haven't already liked the song
+            if(!likedUsers.contains(user)){
+                likedUsers.add(user);
+                // Increment the song's likes
+                int likes = song.getLikes();
+                song.setLikes(likes+1);
 
-            for (Map.Entry<Album, List<Song>> entry : albumSongMap.entrySet()) {
-                Album album = entry.getKey();
-                List<Song> songsInAlbum = entry.getValue();
-                if (songsInAlbum.contains(song)) {
-                    // Album found, find the artist using the artistAlbumMap
-                    for (Map.Entry<Artist, List<Album>> artistEntry : artistAlbumMap.entrySet()) {
-                        List<Album> albumsByArtist = artistEntry.getValue();
-                        if (albumsByArtist.contains(album)) {
-                            // Artist found, increment the likes
-                            Artist artist = artistEntry.getKey();
-                            int artistLikes = artist.getLikes();
-                            artist.setLikes(artistLikes + 1);
-                            break;
+                // Find the album for the song
+                for(Album album:albums){
+                    List<Song> songsInAlbum = albumSongMap.get(album);
+                    if(songsInAlbum.contains(song)){
+                        // Find the artist for the album
+                        for(Artist artist:artists){
+                            List<Album> albumsByArtist = artistAlbumMap.get(artist);
+                            if(albumsByArtist.contains(album)){
+                                // Increment the artist's likes
+                                int artistLikes = artist.getLikes();
+                                artist.setLikes(artistLikes+1);
+                                break;
+                            }
                         }
+                        break;
                     }
-                    break;
                 }
             }
             return song;
         }
-return null;
+        return null;
     }
 
     public String mostPopularArtist() {
-        if (artists.isEmpty()) {
+        // If there are no artists, return a message
+        if(artists.isEmpty()){
             return "No artists found";
         }
-        int max=Integer.MIN_VALUE;
-        String mostPopularArtist="";
-        for(Artist s:artists){
-            if(s.getLikes()>max){
-                max=s.getLikes();
-                mostPopularArtist=s.getName();
-            }
 
+        // Find the artist with the most likes
+        int maxLikes = Integer.MIN_VALUE;
+        Artist mostPopularArtist = null;
+        for(Artist artist:artists){
+            if(artist.getLikes() > maxLikes){
+                maxLikes = artist.getLikes();
+                mostPopularArtist = artist;
+            }
         }
-        return mostPopularArtist;
+
+        // Return the name of the most popular artist
+        return mostPopularArtist.getName();
     }
 
     public String mostPopularSong() {
-        if (songs.isEmpty()) {
+        // If there are no songs, return a message
+        if(songs.isEmpty()){
             return "No songs found";
         }
-        int max=Integer.MIN_VALUE;
-        String mostPopularSong="";
-        for(Song s:songs){
-            if(s.getLikes()>max){
-                max=s.getLikes();
-                mostPopularSong=s.getTitle();
-            }
 
+        // Find the song with the most likes
+        int maxLikes = Integer.MIN_VALUE;
+        Song mostPopularSong = null;
+        for(Song song:songs){
+            if(song.getLikes() > maxLikes){
+                maxLikes = song.getLikes();
+                mostPopularSong = song;
+            }
         }
-        return mostPopularSong;
+
+        // Return the title of the most popular song
+        return mostPopularSong.getTitle();
     }
 }
+
